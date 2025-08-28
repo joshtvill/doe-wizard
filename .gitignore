@@ -1,0 +1,21 @@
+# python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.venv/
+.env
+
+# tools
+.pytest_cache/
+.ipynb_checkpoints/
+.vscode/
+
+# app
+artifacts/
+.streamlit/
+
+# OS
+.DS_Store
+Thumbs.db
