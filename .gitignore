@@ -13,7 +13,8 @@ __pycache__/
 .vscode/
 
 # app
-artifacts/
+/artifacts/*
+!/artifacts/.gitkeep
 .streamlit/
 
 # OS
