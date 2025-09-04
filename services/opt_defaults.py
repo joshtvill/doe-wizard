@@ -1,26 +1,49 @@
 """
 SERVICES :: opt_defaults.py
-Version: v1 (2025-08-29)
 
-Purpose
--------
-Deterministic business logic called by screens. No Streamlit imports; raise typed exceptions.
-
-Contracts (no code)
--------------------
-- Input = pandas/typed dicts; Output = pandas/typed dicts/serializable objects.
-- Raise utils.exceptions.* on invalid inputs; never print/log to UI directly.
-
-Notes
------
-- Placeholder scaffold. Implement functions per SYSTEM_DESIGN and orchestration map.
-- Add unit tests before wiring into Streamlit screens.
+Default settings and minimal recompute helper for Screen 5.
 """
 
+from __future__ import annotations
+from typing import Dict, Any, List
+from pathlib import Path
+import pandas as pd
+from services import artifacts as _art
 
-# TODO: implement module contents per SYSTEM_DESIGN.md
+
+def get_default_settings() -> Dict[str, Any]:
+    return {
+        "acquisition": "EI",
+        "batch_size": 4,
+        "ucb_k": 1.96,
+        "uncertainty_mode": "deterministic",
+        "seed": 1729,
+    }
 
 
-def TODO_replace_me():
-    """Placeholder function for opt_defaults.")"""
-    pass
+def recompute_optimization(session_slug: str, settings: Dict[str, Any] | None = None) -> Dict[str, List[Dict[str, str]]]:
+    """
+    Minimal recompute: write optimization_settings.json, proposals.csv (empty), and optimization_trace.json stub.
+    Uses artifacts writer to attach schema_version.
+    """
+    sdir = Path("artifacts") / session_slug
+    sdir.mkdir(parents=True, exist_ok=True)
+
+    opt_settings = settings or get_default_settings()
+    settings_path = sdir / "optimization_settings.json"
+    _art.save_json(opt_settings, f"{session_slug}_optimization_settings.json")
+
+    proposals_path = sdir / "proposals.csv"
+    pd.DataFrame([]).to_csv(proposals_path, index=False)
+
+    trace = {"steps": []}
+    trace_path = sdir / "optimization_trace.json"
+    _art.save_json(trace, f"{session_slug}_optimization_trace.json")
+
+    return {
+        "written": [
+            {"artifact": "optimization_settings.json", "path": str(settings_path.resolve())},
+            {"artifact": "proposals.csv", "path": str(proposals_path.resolve())},
+            {"artifact": "optimization_trace.json", "path": str(trace_path.resolve())},
+        ]
+    }

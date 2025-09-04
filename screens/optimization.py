@@ -444,8 +444,14 @@ def render(slug: str | None = None) -> None:
             st.warning("Artifacts appear stale for this screen. Recompute or proceed with stale outputs (not recommended).")
             c1, c2 = st.columns(2)
             if c1.button("Recompute upstream"):
-                st.session_state["force_recompute"] = True
-                st.experimental_rerun()
+                try:
+                    from services.opt_defaults import recompute_optimization
+                    results = recompute_optimization(slug or "")
+                    for item in results.get("written", []):
+                        screen_log(slug or "unknown", "s5", {"event": "write", "artifact": item["artifact"], "path": item["path"], "ts": now_utc_iso()})
+                    st.experimental_rerun()
+                except Exception as e:
+                    st.error(f"Recompute failed: {e}")
             if not c2.button("Proceed with stale"):
                 return
         else:

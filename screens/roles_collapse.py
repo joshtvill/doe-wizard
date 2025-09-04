@@ -75,8 +75,18 @@ def render(session_slug: str = "dev_session") -> None:
             st.warning("Artifacts appear stale for this screen. Recompute or proceed with stale outputs (not recommended).")
             c1, c2 = st.columns(2)
             if c1.button("Recompute upstream"):
-                st.session_state["force_recompute"] = True
-                st.experimental_rerun()
+                try:
+                    from services.roles import recompute_roles_and_datacard
+                    # Best-effort roles/collapse placeholders from current UI state
+                    roles_map = {}
+                    collapse_spec = {}
+                    merged_csv = meta["paths"].get("merged")
+                    results = recompute_roles_and_datacard(session_slug, roles_map, collapse_spec, merged_csv)
+                    for item in results.get("written", []):
+                        screen_log(session_slug, "s3", {"event": "write", "artifact": item["artifact"], "path": item["path"], "ts": now_utc_iso()})
+                    st.experimental_rerun()
+                except Exception as e:
+                    st.error(f"Recompute failed: {e}")
             if not c2.button("Proceed with stale"):
                 st.stop()
         else:

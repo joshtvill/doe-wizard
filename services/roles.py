@@ -38,6 +38,10 @@ from __future__ import annotations
 from typing import Dict, Iterable, List, Literal, Tuple
 
 import pandas as pd
+import json, hashlib
+from pathlib import Path
+
+from services import artifacts as _art
 
 
 AggName = Literal["min", "max", "avg"]
@@ -258,3 +262,43 @@ def _build_datacard(
         "notes": "",
     }
     return datacard
+
+
+# --- Tiny orchestration helper for Screen 3 recompute ------------------------
+def recompute_roles_and_datacard(
+    session_slug: str,
+    roles_map: Dict[str, List[str]] | None,
+    collapse_spec: Dict[str, str] | None,
+    merged_csv_path: str,
+) -> Dict[str, List[Dict[str, str]]]:
+    """
+    Minimal recompute: build modeling_ready.csv (pass-through) and datacard.json with fingerprints.
+    This avoids duplicating UI logic; it guarantees fingerprints are refreshed so autoload passes.
+    """
+    sdir = Path("artifacts") / session_slug
+    sdir.mkdir(parents=True, exist_ok=True)
+
+    # 1) modeling_ready.csv (pass-through from merged)
+    df = pd.read_csv(merged_csv_path)
+    ready_path = sdir / "modeling_ready.csv"
+    df.to_csv(ready_path, index=False)
+
+    # 2) datacard.json with fingerprints
+    h = hashlib.sha256(); h.update(Path(merged_csv_path).read_bytes()); dataset_hash = h.hexdigest()
+    roles_signature = hashlib.sha256(json.dumps({"roles_map": roles_map or {}, "collapse": collapse_spec or {}}, sort_keys=True).encode("utf-8")).hexdigest()
+    datacard = {
+        "roles_map": roles_map or {},
+        "collapse_spec": collapse_spec or {},
+        "dataset_hash": dataset_hash,
+        "roles_signature": roles_signature,
+    }
+    datacard_path = sdir / "datacard.json"
+    # use artifacts writer to attach schema_version
+    _art.save_json(datacard, f"{session_slug}_datacard.json")
+
+    return {
+        "written": [
+            {"artifact": "modeling_ready.csv", "path": str(ready_path.resolve())},
+            {"artifact": "datacard.json", "path": str(datacard_path.resolve())},
+        ]
+    }

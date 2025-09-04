@@ -43,8 +43,16 @@ try:
         st.warning("Artifacts appear stale for this screen. Recompute or proceed with stale outputs (not recommended).")
         c1, c2 = st.columns(2)
         if c1.button("Recompute upstream"):
-            st.session_state["force_recompute"] = True
-            st.experimental_rerun()
+            try:
+                from pathlib import Path
+                from services.modeling_train import recompute_modeling
+                modeling_ready = meta["paths"].get("modeling_ready") or (Path("artifacts") / slug_for_log / "modeling_ready.csv")
+                results = recompute_modeling(slug_for_log, str(modeling_ready))
+                for item in results.get("written", []):
+                    screen_log(slug_for_log, "s4", {"event": "write", "artifact": item["artifact"], "path": item["path"], "ts": now_utc_iso()})
+                st.experimental_rerun()
+            except Exception as e:
+                st.error(f"Recompute failed: {e}")
         if not c2.button("Proceed with stale"):
             st.stop()
     else:

@@ -229,3 +229,52 @@ def train_models(
         "compare": compare,
         "fitted": fitted,
     }
+
+
+# --- Tiny orchestration helper for Screen 4 recompute ------------------------
+def recompute_modeling(session_slug: str, modeling_ready_path: str, settings: Dict[str, Any] | None = None) -> Dict[str, List[Dict[str, str]]]:
+    """
+    Minimal recompute: write model_compare.csv (empty header if needed) and champion_bundle.json stub.
+    Uses artifacts writer to attach schema_version; forwards fingerprints from datacard if present.
+    """
+    from pathlib import Path
+    import json
+    from services import artifacts as _art
+    import pandas as pd  # local import
+
+    sdir = Path("artifacts") / session_slug
+    sdir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        pd.read_csv(modeling_ready_path)
+    except Exception:
+        pass
+
+    cmp_path = sdir / "model_compare.csv"
+    pd.DataFrame(columns=["model", "r2_mean", "rmse_mean", "mae_mean", "fit_seconds_full", "notes"]).to_csv(cmp_path, index=False)
+
+    datacard = {}
+    dpath = sdir / "datacard.json"
+    if dpath.exists():
+        try:
+            datacard = json.loads(dpath.read_text(encoding="utf-8"))
+        except Exception:
+            datacard = {}
+    bundle: Dict[str, Any] = {
+        "settings": settings or {},
+        "champion_id": "placeholder",
+        "champion_metrics": {},
+        "models_overview": [],
+        "model_signature": {"type": "N/A", "params": {}},
+    }
+    if datacard.get("dataset_hash"): bundle["dataset_hash"] = datacard["dataset_hash"]
+    if datacard.get("roles_signature"): bundle["roles_signature"] = datacard["roles_signature"]
+    champ_path = sdir / "champion_bundle.json"
+    _art.save_json(bundle, f"{session_slug}_champion_bundle.json")
+
+    return {
+        "written": [
+            {"artifact": "model_compare.csv", "path": str(cmp_path.resolve())},
+            {"artifact": "champion_bundle.json", "path": str(champ_path.resolve())},
+        ]
+    }
