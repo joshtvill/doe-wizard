@@ -26,6 +26,7 @@ from services.handoff_packaging import (
 
 from utils.screenlog import screen_log  # NEW
 from utils.runtime import now_utc_iso
+from state import autoload_latest_artifacts, fingerprint_check
 from ui.blocks import nav_bar  # Canonical nav
 
 ARTIFACTS_DIR = Path("artifacts")  # local-first per project rules
@@ -37,6 +38,25 @@ def render():
     try:
         slug_for_log = st.session_state.get("session_slug") if "session_slug" in st.session_state else None
         screen_log(slug_for_log or "unknown", "s6", {"event": "enter", "ts": now_utc_iso()})
+    except Exception:
+        pass
+    # Autoload + fingerprint guard
+    try:
+        eff_slug = (st.session_state.get("session_slug") if "session_slug" in st.session_state else None)
+        if eff_slug:
+            meta = autoload_latest_artifacts(eff_slug)
+            chk = fingerprint_check(meta.get("upstream", {}), meta.get("current", {}))
+            if not chk["ok"]:
+                screen_log(eff_slug, "s6", {"event": "fingerprint_mismatch", "reasons": chk["reasons"], "ts": now_utc_iso()})
+                st.warning("Artifacts appear stale for this screen. Recompute or proceed with stale outputs (not recommended).")
+                c1, c2 = st.columns(2)
+                if c1.button("Recompute upstream"):
+                    st.session_state["force_recompute"] = True
+                    st.experimental_rerun()
+                if not c2.button("Proceed with stale"):
+                    st.stop()
+            else:
+                screen_log(eff_slug, "s6", {"event": "autoload", "ts": now_utc_iso()})
     except Exception:
         pass
 

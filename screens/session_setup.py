@@ -14,6 +14,7 @@ import streamlit as st
 from services.session_setup_store import default_slug, build_payload, write_payload
 from utils.screenlog import screen_log  # shared JSONL writer
 from utils.runtime import now_utc_iso
+from state import autoload_latest_artifacts, fingerprint_check
 from ui.blocks import nav_bar           # canonical nav (Back / Reset / Next)
 
 # --- Session-state keys (local to Screen 1) ---
@@ -62,6 +63,17 @@ def render(session_slug: Optional[str] = None) -> None:
     try:
         slug_for_log = (st.session_state.get("session_slug") if "session_slug" in st.session_state else None) or (session_slug or default_slug("run"))
         screen_log(slug_for_log, "s1", {"event": "enter", "ts": now_utc_iso()})
+    except Exception:
+        pass
+    # Autoload + fingerprint guard (S1 has no upstream artifacts yet; best-effort)
+    try:
+        meta = autoload_latest_artifacts(slug_for_log)
+        chk = fingerprint_check(meta.get("upstream", {}), meta.get("current", {}))
+        if not chk["ok"]:
+            screen_log(slug_for_log, "s1", {"event": "fingerprint_mismatch", "reasons": chk["reasons"], "ts": now_utc_iso()})
+            st.info("Upstream artifacts will be created/overwritten once you save this screen.")
+        else:
+            screen_log(slug_for_log, "s1", {"event": "autoload", "ts": now_utc_iso()})
     except Exception:
         pass
 

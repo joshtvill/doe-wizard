@@ -22,6 +22,7 @@ from services.artifacts import save_json, save_csv
 from utils.constants import PROF_SAMPLE_CAP
 from utils.screenlog import screen_log  # NEW
 from utils.runtime import now_utc_iso
+from state import autoload_latest_artifacts, fingerprint_check
 
 # --- Session-state keys (local to Screen 2) ---
 _K_FEATURES = "s2_features_df"
@@ -119,6 +120,23 @@ def render(session_slug: str = "dev_session") -> None:
     # Entry log
     try:
         screen_log(session_slug, "s2", {"event": "enter", "ts": now_utc_iso()})
+    except Exception:
+        pass
+    # Autoload + fingerprint guard
+    try:
+        meta = autoload_latest_artifacts(session_slug)
+        chk = fingerprint_check(meta.get("upstream", {}), meta.get("current", {}))
+        if not chk["ok"]:
+            screen_log(session_slug, "s2", {"event": "fingerprint_mismatch", "reasons": chk["reasons"], "ts": now_utc_iso()})
+            st.warning("Artifacts appear stale for this screen. Recompute or proceed with stale outputs (not recommended).")
+            c1, c2 = st.columns(2)
+            if c1.button("Recompute upstream"):
+                st.session_state["force_recompute"] = True
+                st.experimental_rerun()
+            if not c2.button("Proceed with stale"):
+                st.stop()
+        else:
+            screen_log(session_slug, "s2", {"event": "autoload", "ts": now_utc_iso()})
     except Exception:
         pass
     app_header("Screen 2 — Files • Join • Profiling", "Upload, optional join, profile, preview, and save")

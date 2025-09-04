@@ -22,6 +22,7 @@ from services.artifacts import save_csv, save_json
 from utils.ui_state import bump_version, clear_keys
 from utils.screenlog import screen_log  # NEW
 from utils.runtime import now_utc_iso
+from state import autoload_latest_artifacts, fingerprint_check
 
 # ---- Screen-local state keys (NOT widget keys) ----
 _K_VER       = "s3_ver"            # widget version for reset
@@ -63,6 +64,23 @@ def render(session_slug: str = "dev_session") -> None:
     # Entry log
     try:
         screen_log(session_slug, "s3", {"event": "enter", "ts": now_utc_iso()})
+    except Exception:
+        pass
+    # Autoload + fingerprint guard
+    try:
+        meta = autoload_latest_artifacts(session_slug)
+        chk = fingerprint_check(meta.get("upstream", {}), meta.get("current", {}))
+        if not chk["ok"]:
+            screen_log(session_slug, "s3", {"event": "fingerprint_mismatch", "reasons": chk["reasons"], "ts": now_utc_iso()})
+            st.warning("Artifacts appear stale for this screen. Recompute or proceed with stale outputs (not recommended).")
+            c1, c2 = st.columns(2)
+            if c1.button("Recompute upstream"):
+                st.session_state["force_recompute"] = True
+                st.experimental_rerun()
+            if not c2.button("Proceed with stale"):
+                st.stop()
+        else:
+            screen_log(session_slug, "s3", {"event": "autoload", "ts": now_utc_iso()})
     except Exception:
         pass
 
@@ -158,6 +176,11 @@ def render(session_slug: str = "dev_session") -> None:
                     p = save_csv(out_df, f"{session_slug}_collapsed.csv", root=".")
                     st.success(f"Saved CSV → {p}")
                     st.code(str(p), language="text")
+                    try:
+                        from pathlib import Path as _P
+                        screen_log(session_slug, "s3", {"event": "write", "artifact": _P(p).name, "path": str(p), "ts": now_utc_iso()})
+                    except Exception:
+                        pass
                     try:
                         from pathlib import Path as _P
                         screen_log(session_slug, "s3", {"event": "write", "artifact": _P(p).name, "path": str(p), "ts": now_utc_iso()})

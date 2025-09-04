@@ -16,6 +16,7 @@ from services.modeling_select import select_champion, build_champion_bundle
 from services.artifacts import save_csv, save_json
 from utils.screenlog import screen_log  # NEW
 from utils.runtime import now_utc_iso
+from state import autoload_latest_artifacts, fingerprint_check
 from ui.blocks import nav_bar  # Canonical nav
 
 # Optional session slug from state if available
@@ -31,6 +32,23 @@ st.title("Screen 4 — Modeling & Evaluation")
 try:
     slug_for_log = (st.session_state.get("session_slug") if "session_slug" in st.session_state else None) or _DEFAULT_SLUG
     screen_log(slug_for_log, "s4", {"event": "enter", "ts": now_utc_iso()})
+except Exception:
+    pass
+# Autoload + fingerprint guard
+try:
+    meta = autoload_latest_artifacts(slug_for_log)
+    chk = fingerprint_check(meta.get("upstream", {}), meta.get("current", {}))
+    if not chk["ok"]:
+        screen_log(slug_for_log, "s4", {"event": "fingerprint_mismatch", "reasons": chk["reasons"], "ts": now_utc_iso()})
+        st.warning("Artifacts appear stale for this screen. Recompute or proceed with stale outputs (not recommended).")
+        c1, c2 = st.columns(2)
+        if c1.button("Recompute upstream"):
+            st.session_state["force_recompute"] = True
+            st.experimental_rerun()
+        if not c2.button("Proceed with stale"):
+            st.stop()
+    else:
+        screen_log(slug_for_log, "s4", {"event": "autoload", "ts": now_utc_iso()})
 except Exception:
     pass
 
@@ -211,6 +229,16 @@ if st.button("Save artifacts", disabled=save_disabled, key="s4_btn_save"):
         )
 
         written_compare = save_csv(cmp_df, compare_name)
+        # Attach fingerprints if available
+        try:
+            meta = autoload_latest_artifacts(slug)
+            up = meta.get("upstream", {})
+            pack = dict(pack)
+            if up.get("dataset_hash"): pack["dataset_hash"] = up["dataset_hash"]
+            if up.get("roles_signature"): pack["roles_signature"] = up["roles_signature"]
+            pack.setdefault("schema_version", "2025-08-29")
+        except Exception:
+            pass
         written_bundle = save_json(pack, bundle_name)
 
         # Write events (canonical)

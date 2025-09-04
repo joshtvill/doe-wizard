@@ -27,6 +27,7 @@ from utils.runtime import env_flag, session_slug, now_utc_iso
 from utils.uilog import write_event_jsonl  # shared JSONL writer
 from utils.screenlog import screen_log  # canonical JSONL logger used across screens
 from ui.blocks import nav_bar  # canonical nav
+from state import autoload_latest_artifacts, fingerprint_check
 
 from services import opt_constraints as s5c
 from services import opt_candidate_pool as s5p
@@ -216,6 +217,18 @@ def _single_pass(*, slug: str, profile: dict | None, champion_bundle: dict | Non
         "timestamp_utc": now_utc_iso(),
         "ack": ack_record,
     }
+    # Attach upstream fingerprints if available
+    try:
+        meta = autoload_latest_artifacts(slug)
+        up = meta.get("upstream", {})
+        if up.get("dataset_hash"):
+            settings_payload["dataset_hash"] = up["dataset_hash"]
+            trace_payload["dataset_hash"] = up["dataset_hash"]
+        if up.get("roles_signature"):
+            settings_payload["roles_signature"] = up["roles_signature"]
+            trace_payload["roles_signature"] = up["roles_signature"]
+    except Exception:
+        pass
     hitl_info = {"level": level, "ack_required": ack_required, "messages": messages}
     return settings_payload, trace_payload, df, hitl_info
 
@@ -419,6 +432,23 @@ def render(slug: str | None = None) -> None:
     # Entry log
     try:
         screen_log(slug or "unknown", "s5", {"event": "enter", "ts": now_utc_iso()})
+    except Exception:
+        pass
+    # Autoload + fingerprint guard
+    try:
+        meta = autoload_latest_artifacts(slug or "")
+        chk = fingerprint_check(meta.get("upstream", {}), meta.get("current", {}))
+        if not chk["ok"]:
+            screen_log(slug or "unknown", "s5", {"event": "fingerprint_mismatch", "reasons": chk["reasons"], "ts": now_utc_iso()})
+            st.warning("Artifacts appear stale for this screen. Recompute or proceed with stale outputs (not recommended).")
+            c1, c2 = st.columns(2)
+            if c1.button("Recompute upstream"):
+                st.session_state["force_recompute"] = True
+                st.experimental_rerun()
+            if not c2.button("Proceed with stale"):
+                return
+        else:
+            screen_log(slug or "unknown", "s5", {"event": "autoload", "ts": now_utc_iso()})
     except Exception:
         pass
 

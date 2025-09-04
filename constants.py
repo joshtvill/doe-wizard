@@ -1,22 +1,7 @@
-"""
-MAIN :: constants.py
-Version: v1 (2025-08-29)
+"""Project constants
 
-Purpose
--------
-Thin router and screen shells that call services and render via ui blocks.
-
-Contracts (no code)
--------------------
-- Each screen enforces local DoD; on Next, write artifacts and return to router.
-
-Notes
------
-- Placeholder scaffold. Implement functions per SYSTEM_DESIGN and orchestration map.
-- Add unit tests before wiring into Streamlit screens.
+Single source of truth for schema versioning referenced by writers and screens.
 """
 
-
-# TODO: implement module contents per SYSTEM_DESIGN.md
-
-pass
+# Schema version for JSON artifacts (profile, datacard, bundles, optimization)
+SCHEMA_VERSION = "2025-08-29"
