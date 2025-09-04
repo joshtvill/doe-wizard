@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "doe-wizard"
+version = "0.0.1"
+description = "CMP AI-Guided DOE Wizard"
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.setuptools]
+# We treat these top-level folders as packages
+packages = ["services", "utils", "ui", "screens"]
+
+[tool.setuptools.package-data]
+# include non-.py files under these packages if needed later
+services = ["**/*.json", "**/*.md"]
+ui = ["**/*.json", "**/*.md"]
+utils = ["**/*.json", "**/*.md"]
+screens = ["**/*.json", "**/*.md"]

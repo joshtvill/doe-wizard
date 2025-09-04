@@ -1,12 +1,22 @@
-"""Simple helpers for Streamlit session state."""
-import streamlit as st
+"""
+MAIN :: state.py
+Version: v1 (2025-08-29)
 
-def get(key, default=None):
-    return st.session_state.get(key, default)
+Purpose
+-------
+Thin router and screen shells that call services and render via ui blocks.
 
-def set(key, value):
-    st.session_state[key] = value
+Contracts (no code)
+-------------------
+- Each screen enforces local DoD; on Next, write artifacts and return to router.
 
-def ensure(keys_with_defaults):
-    for k, v in keys_with_defaults.items():
-        st.session_state.setdefault(k, v)
+Notes
+-----
+- Placeholder scaffold. Implement functions per SYSTEM_DESIGN and orchestration map.
+- Add unit tests before wiring into Streamlit screens.
+"""
+
+
+# TODO: implement module contents per SYSTEM_DESIGN.md
+
+pass

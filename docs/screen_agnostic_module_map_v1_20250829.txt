@@ -1,0 +1,82 @@
+# Screen-Agnostic Module Map — CMP AI-Guided DOE Wizard
+Version: v1 (2025-08-29)
+Scope: services/, utils/, ui/ — independent of any screen.
+
+--------------------------------------------
+TREE STRUCTURE
+--------------------------------------------
+services/
+  __init__.py
+  session_setup_store.py
+  file_io.py
+  joiner.py
+  profiler.py
+  roles.py
+  modeling_train.py
+  modeling_select.py
+  opt_defaults.py
+  opt_validation.py
+  opt_candidate_pool.py
+  opt_scoring.py
+  opt_distance.py
+  artifacts.py
+  .gitkeep
+
+utils/
+  __init__.py
+  naming.py
+  time.py
+  normalize.py
+  regex.py
+  ops.py
+  rng.py
+  jsonsafe.py
+  .gitkeep
+
+ui/
+  __init__.py
+  blocks.py
+  tables.py
+  dialogs.py
+  theme.py
+  .gitkeep
+
+--------------------------------------------
+TABLE STRUCTURE
+--------------------------------------------
+Folder/Module | File | Functions | Description
+--------------|------|-----------|-------------
+services | session_setup_store.py | save_session_setup(), load_session_setup_json(), apply_session_setup_to_state(), reset_session_setup() | Persist, reload, apply, and reset session setup state (Screen 1 + global)
+services | file_io.py | upload_csv(), safe_write_csv(), safe_write_json(), read_json() | Handle file uploads/reads, enforce CSV-only policy, safe write with naming
+services | joiner.py | validate_keys(), execute_join() | Validate join keys, perform left/right join (Features + Response)
+services | profiler.py | profile_table(), profile_columns(), detect_alerts() | Generate table/column summaries with metrics, flags (high-cardinality, missingness, IDs)
+services | roles.py | assign_roles(), execute_collapse(), check_variance() | Assign features to roles (knobs, usage, run-constant, exclude), collapse by rules, check response variance
+services | modeling_train.py | train_rf(), train_xgb(), train_gpr(), compute_metrics(), run_diagnostics() | Train surrogate models, compute RMSE/MAE/R², residuals, calibration, importance
+services | modeling_select.py | select_champion(), generate_rationale() | Pick best model per rules (highest R² etc.), generate human-readable rationale
+services | opt_defaults.py | compute_feature_bounds() | Compute default bounds from dataset stats and safety k
+services | opt_validation.py | validate_constraints_table(), validate_baseline() | Validate constraints input, Δ logic, enforce gating rules
+services | opt_candidate_pool.py | sample_candidates(), filter_candidates() | Generate candidate pool via Sobol/LHS; filter by constraints/forbidden/Δ
+services | opt_scoring.py | compute_ei(), compute_pi(), compute_ucb(), greedy_batch_select() | Acquisition scoring + greedy q-EI batch selection
+services | opt_distance.py | compute_distance_numeric(), compute_distance_mixed() | Compute Euclidean/Hamming/mixed distances for diversity safeguards
+services | artifacts.py | save_artifact(), load_artifact(), log_event() | Cross-screen artifact handling (JSON/CSV/MD), write/read logs
+
+utils | naming.py | slugify(), make_artifact_prefix() | Turn session title → slug, build artifact prefixes with YYMMDD
+utils | time.py | now_local_and_utc() | Generate local + UTC ISO timestamps
+utils | normalize.py | standardize_numeric(), drop_constant_features() | Preprocess numeric features, drop all-missing/constant columns
+utils | regex.py | regex_select_columns(), regex_filter_rows() | Column/row selection via regex, used in roles/constraints screens
+utils | ops.py | safe_div(), bounded_avg(), delta_with_floor() | Small math ops with guards against div0, enforce floors
+utils | rng.py | set_seed(), get_rng() | Control random seeding across modeling/optimization
+utils | jsonsafe.py | safe_json_dumps(), safe_json_loads() | Ensure JSON serializable, guard against NaN/inf values
+
+ui | blocks.py | nav_bar(), status_zone(), section_header(), single_click_button() | Shared layout components, navigation, single-click handling
+ui | tables.py | render_table_editor(), render_regex_filter(), render_bulk_edit_table() | Data editor and constraint/roles tables
+ui | dialogs.py | open_forbidden_interval_modal(), open_acknowledge_warning_modal() | Specialized dialogs for forbidden intervals and HITL acknowledgments
+ui | theme.py | apply_theme(), load_css() | Centralized style/theme controls for Streamlit
+
+--------------------------------------------
+NOTES
+--------------------------------------------
+- All functions are **conceptual**; no implementation yet. 
+- Derived only from contracts (Screens 1–6 + app-level contract). 
+- Each file has exactly one purpose (screen-agnostic, reusable). 
+- Screens import from these modules for business logic, leaving UI shells thin.

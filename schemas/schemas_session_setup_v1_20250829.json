@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "required": [
+    "session_slug",
+    "objective",
+    "response_metric",
+    "context_tag",
+    "timestamps"
+  ],
+  "properties": {
+    "session_slug": {
+      "type": "string"
+    },
+    "objective": {
+      "type": "string",
+      "enum": [
+        "maximize",
+        "minimize"
+      ]
+    },
+    "response_metric": {
+      "type": "string"
+    },
+    "context_tag": {
+      "type": "string"
+    },
+    "timestamps": {
+      "type": "object",
+      "properties": {
+        "local": {
+          "type": "string"
+        },
+        "utc": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,289 @@
+# Screen-by-Screen Orchestration Map — CMP AI-Guided DOE Wizard
+version: v1 (2025-08-29)
+scope: conceptual (no code). maps modules/functions (ui/, utils/, services/) and
+       shows artifact + in-memory state flow across screens per v2 contracts.
+
+===============================================================================
+SCREEN 1 — SESSION SETUP
+===============================================================================
+WHAT RUNS (ORDERED)
+UI
+- ui.theme.apply_theme()
+- ui.blocks.section_header()
+- ui.blocks.single_click_button()  # Save, Load, Reset, Next
+- ui.blocks.status_zone()
+
+UTILS
+- utils.naming.slugify()
+- utils.naming.make_artifact_prefix()
+- utils.time.now_local_and_utc()
+- utils.jsonsafe.safe_json_dumps()/safe_json_loads()
+
+SERVICES
+- services.session_setup_store.save_session_setup(payload)
+- services.session_setup_store.load_session_setup_json(bytes_obj)
+- services.session_setup_store.apply_session_setup_to_state(obj)
+- services.session_setup_store.reset_session_setup()
+
+STATE WRITTEN (CONCEPTUAL)
+- session.slug, session.artifact_prefix, session.objective, session.response_type,
+  session.context_tag, session.response_metric, session.datetime_local, session.datetime_utc
+
+ARTIFACTS
+- write on Save/Next: <session_slug>_session_setup.json
+- read on Load: uploaded session_setup.json (rehydrates Screen 1 only)
+
+GATING & TRANSITION
+- Next requires required fields present.
+- Carry forward (in memory): session metadata only → Screen 2.
+
+
+===============================================================================
+SCREEN 2 — FILES • JOIN • PROFILING
+===============================================================================
+WHAT RUNS (ORDERED)
+UI
+- ui.blocks.section_header(), ui.blocks.status_zone()
+- ui.blocks.single_click_button()  # Execute, Reset, Next
+- ui.tables.render_table_editor()  # profile previews
+
+UTILS
+- utils.jsonsafe.safe_json_dumps()/safe_json_loads()
+- utils.regex.regex_select_columns()         # optional helper in previews
+- utils.ops.safe_div()                        # profile ratios
+
+SERVICES
+- services.file_io.upload_csv()              # features, response
+- services.joiner.validate_keys(features_df, response_df, key_pairs)
+- services.joiner.execute_join(features_df, response_df, key_pairs, how="left")
+- services.profiler.profile_table(df)        # -> {table_summary, columns_profile}
+- services.profiler.profile_columns(df), services.profiler.detect_alerts(df)
+- services.artifacts.save_artifact(obj_or_df, path)  # for Save buttons + autosaves
+
+STATE WRITTEN
+- data.features_df, data.response_df
+- data.merged_df (if Response provided)
+- data.profile_payload  # {table_summary, columns_profile}
+- data.join_diagnostics, ui.ack_join_warnings
+- data.last_execute_fingerprint, ui.screen2_ready_for_next
+
+ARTIFACTS
+- optional buttons: <session_slug>_merged.csv (if joined), <session_slug>_profile.json
+- autosave on Next: <session_slug>_profile.json (confirm latest),
+                    <session_slug>_screen2_log.json
+
+GATING & TRANSITION
+- Next requires: features loaded; if response provided, valid join; profile computed and current;
+  warnings acknowledged if any.
+- Carry forward (in memory): current table (Features or Merged) + profile payload → Screen 3.
+
+
+===============================================================================
+SCREEN 3 — ROLES & COLLAPSE
+===============================================================================
+WHAT RUNS (ORDERED)
+UI
+- ui.blocks.section_header(), ui.blocks.status_zone()
+- ui.blocks.single_click_button()  # Execute collapse, Reset, Next
+- ui.tables.render_table_editor()  # roles assignment summary
+- ui.dialogs.open_acknowledge_warning_modal()  # response variance
+
+UTILS
+- utils.regex.regex_select_columns()
+- utils.normalize.drop_constant_features()   # advisory
+- utils.ops.bounded_avg(), utils.ops.safe_div()
+
+SERVICES
+- services.roles.assign_roles(df, user_assignments) -> {knobs, usage, run_constant, exclude}
+- services.roles.check_variance(df, responses, grouping_keys) -> variance counts
+- services.roles.execute_collapse(df, roles, grouping_keys, collapse_plan) -> collapsed_df
+- services.profiler.profile_table(collapsed_df)
+- services.artifacts.save_artifact(...)  # autosaves on Next
+
+STATE WRITTEN
+- roles.responses_selected, roles.grouping_keys
+- roles.features.roles_map  # knobs/usage/run_constant/exclude
+- roles.collapse_plan       # per-feature min/max/avg or last_by:*
+- roles.response_variance_groups, ui.ack_response_variance
+- data.collapsed_df, data.collapsed_profile
+- ui.screen3_ready_for_next
+
+ARTIFACTS (ON NEXT)
+- <session_slug>_modeling_ready.csv
+- <session_slug>_datacard.json
+- <session_slug>_screen3_log.json
+
+GATING & TRANSITION
+- Next requires: ≥1 response selected; if grouping keys ≥1 → collapse executed; variance ack if triggered.
+- Carry forward (in memory): collapsed_df → Screen 4.
+
+
+===============================================================================
+SCREEN 4 — MODELING & EVALUATION
+===============================================================================
+WHAT RUNS (ORDERED)
+UI
+- ui.blocks.section_header(), ui.blocks.status_zone()
+- ui.blocks.single_click_button()  # Execute training, Reset, Next
+- ui.tables.render_table_editor()  # model comparison (table); charts later
+
+UTILS
+- utils.rng.set_seed(seed)
+- utils.normalize.standardize_numeric()   # for models that need it (e.g., GPR)
+- utils.ops.safe_div(), utils.jsonsafe.safe_json_dumps()/safe_json_loads()
+
+SERVICES
+- services.modeling_train.train_rf(X, y, spec)
+- services.modeling_train.train_xgb(X, y, spec)
+- services.modeling_train.train_gpr(X, y, spec)
+- services.modeling_train.compute_metrics(y_true, y_pred)    # RMSE/MAE/R²
+- services.modeling_train.run_diagnostics(estimator, X, y)  # residuals/calibration/importance
+- services.modeling_select.select_champion(results_table)
+- services.modeling_select.generate_rationale(champion, runners_up)
+- services.artifacts.save_artifact(...)   # settings at Execute; results & logs on Save/Next
+
+STATE WRITTEN
+- model.active_response, model.features_selected, model.validation_cfg
+- model.results_table, model.champion, model.diagnostics
+- model.ack_quality_warning
+- ui.train_progress_pct/label, ui.screen4_ready_for_next
+
+ARTIFACTS
+- at Execute: <session_slug>_modeling_settings.json (written, then updated post-run)
+- writes: <session_slug>_model_compare.csv, <session_slug>_champion_bundle.json,
+          (optional) <session_slug>_champion_model.pkl, <session_slug>_screen4_log.json
+- reads: <session_slug>_datacard.json (for read-only ranges)
+
+GATING & TRANSITION
+- Next requires: ≥1 successful model; comparison exists; champion selected; quality ack if needed.
+- Carry forward (in memory): champion bundle (and/or model handle) → Screen 5.
+
+
+===============================================================================
+SCREEN 5 — OPTIMIZATION & NEXT RUNS
+===============================================================================
+WHAT RUNS (ORDERED)
+UI
+- ui.blocks.section_header(), ui.blocks.status_zone()
+- ui.blocks.single_click_button()  # Execute, Reset, Next
+- ui.tables.render_table_editor()  # constraints builder (regex + bulk edit)
+- ui.dialogs.open_acknowledge_warning_modal()  # for L2 ACK
+
+UTILS
+- utils.rng.set_seed(seed)
+- utils.regex.regex_select_columns()      # constraint filtering
+- utils.ops.delta_with_floor(), utils.ops.safe_div()
+
+SERVICES
+- services.opt_defaults.compute_feature_bounds(training_stats, safety_k)
+- services.opt_validation.validate_constraints_table(df_constraints, baseline)
+- services.opt_validation.validate_baseline(baseline, df_constraints)
+- services.opt_candidate_pool.sample_candidates(bounds, roles, fixed, allowed_categories, forbidden, delta) -> pool_df
+- services.opt_candidate_pool.filter_candidates(pool_df, constraints, safeguards) -> feasible_df
+- services.opt_scoring.compute_ei()/compute_pi()/compute_ucb()
+- services.opt_scoring.greedy_batch_select(scored_df, diversity_min, distance_fn=services.opt_distance.compute_distance_mixed)
+- services.opt_distance.compute_distance_numeric()/compute_distance_mixed()
+- services.artifacts.save_artifact(...)  # settings at Execute; proposals/trace/logs on Save/Next
+
+STATE WRITTEN
+- opt.response, opt.direction
+- opt.batch_size, opt.acquisition, opt.ucb_k, opt.seed
+- opt.uncertainty_mode
+- opt.safeguards {diversity_min, safety_k, novelty_limit}
+- opt.constraints_df, opt.baseline, opt.delta_global_default
+- opt.proposals_df, opt.trace
+- ui.ack_L2, ui.opt_ready_for_next
+
+ARTIFACTS
+- reads: <session_slug>_champion_bundle.json (and optional _champion_model.pkl)
+- writes: <session_slug>_optimization_settings.json (at Execute; re-write on Next),
+          <session_slug>_proposals.csv, <session_slug>_optimization_trace.json,
+          <session_slug>_screen5_log.json
+
+GATING & TRANSITION
+- Execute disabled until validation passes (row + table-level).
+- Next requires: feasible proposals_df (non-empty) and HITL gates satisfied (L0/L1 or L2 ack).
+- Carry forward (in memory): proposals_df/settings/trace → Screen 6.
+
+
+===============================================================================
+SCREEN 6 — NEXT RUNS REPORT & HANDOFF
+===============================================================================
+WHAT RUNS (ORDERED)
+UI
+- ui.blocks.section_header(), ui.blocks.status_zone()
+- ui.blocks.single_click_button()  # Approve & stamp, Generate export pack, Finish/Close
+- ui.tables.render_table_editor()  # read-only proposals table
+- ui.dialogs.open_acknowledge_warning_modal()  # if needed
+
+UTILS
+- utils.time.now_local_and_utc()
+- utils.jsonsafe.safe_json_dumps()
+
+SERVICES
+- services.artifacts.load_artifact("<session_slug>_proposals.csv")
+- services.artifacts.load_artifact("<session_slug>_optimization_settings.json")
+- services.artifacts.load_artifact("<session_slug>_champion_bundle.json")
+- services.artifacts.save_artifact("<session_slug>_handoff_summary.md")
+- services.artifacts.save_artifact("<session_slug>_run_plan.csv")
+- services.artifacts.save_artifact("<session_slug>_traveler.md")
+- services.artifacts.save_artifact("<session_slug>_export_pack.zip")
+- services.artifacts.save_artifact("<session_slug>_screen6_log.json")
+
+STATE WRITTEN
+- handoff.checklist (6 items), handoff.approver {name, role?, notes?}
+- handoff.approved_at_local, handoff.approved_at_utc
+- handoff.export_created (bool), handoff.artifact_paths
+
+ARTIFACTS
+- reads: proposals.csv, optimization_settings.json, champion_bundle.json
+- writes: handoff_summary.md, run_plan.csv, traveler.md, export_pack.zip, screen6_log.json
+
+GATING & FINISH
+- Approve requires all checklist items checked, approver name present, proposals non-empty, no L3/L4.
+- Export pack only after approval.
+- Finish/Close writes compact log and returns to Screen 1.
+
+
+===============================================================================
+CROSS-SCREEN DATA & ARTIFACT FLOW (END-TO-END)
+===============================================================================
+S1 → S2
+- in memory: session slug, artifact_prefix, objective, response meta
+- on disk: <session_slug>_session_setup.json
+
+S2 → S3
+- in memory: active table (Features or Merged), profile payload
+- on disk: <session_slug>_profile.json (latest), optional <session_slug>_merged.csv, <session_slug>_screen2_log.json
+
+S3 → S4
+- in memory: collapsed_df (modeling-ready), collapsed profile
+- on disk: <session_slug>_modeling_ready.csv, <session_slug>_datacard.json, <session_slug>_screen3_log.json
+
+S4 → S5
+- in memory: champion bundle (and optional model handle)
+- on disk: <session_slug>_model_compare.csv, <session_slug>_champion_bundle.json,
+           optional <session_slug>_champion_model.pkl, <session_slug>_modeling_settings.json, <session_slug>_screen4_log.json
+
+S5 → S6
+- in memory: proposals_df, optimization_settings, trace
+- on disk: <session_slug>_optimization_settings.json, <session_slug>_proposals.csv,
+           <session_slug>_optimization_trace.json, <session_slug>_screen5_log.json
+
+S6 (FINAL OUTPUTS)
+- on disk: <session_slug>_handoff_summary.md, <session_slug>_run_plan.csv,
+           <session_slug>_traveler.md, <session_slug>_export_pack.zip, <session_slug>_screen6_log.json
+
+PRINCIPLES
+- “Autosave on Next” guarantees reproducibility with minimal files.
+- Active working data is passed in memory for speed; disk artifacts exist for recovery/audit.
+- Fingerprint staleness checks (S2/S3/S5) and universal single-click handlers prevent orchestration races.
+
+===============================================================================
+COMMON PITFALLS & GUARDRAILS (ORCHESTRATION)
+===============================================================================
+- Button double-click races → always use ui.blocks.single_click_button().
+- Stale previews after input changes → maintain last_execute_fingerprint and recompute before enabling Next.
+- Leakage risk in modeling → prefer GroupKFold when grouping keys exist (UI guidance).
+- Over-tight S5 constraints → circuit breaker + auto-tips to relax bounds/Δ/novelty/diversity.
+- Timezone confusion → always write both local (America/Los_Angeles) and UTC timestamps.

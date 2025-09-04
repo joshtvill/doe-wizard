@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "required": [
+    "model_type",
+    "model_uid",
+    "training_metrics",
+    "feature_list"
+  ],
+  "properties": {
+    "model_type": {
+      "type": "string"
+    },
+    "model_uid": {
+      "type": "string"
+    },
+    "training_metrics": {
+      "type": "object"
+    },
+    "feature_list": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "training_hash": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  }
+}
