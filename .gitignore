@@ -22,3 +22,6 @@ __pycache__/
 Thumbs.db
 
 screens/scratch.py
+
+# codex temp
+.codex_tmp_*
