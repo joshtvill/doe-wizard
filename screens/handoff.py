@@ -25,7 +25,7 @@ from services.handoff_packaging import (
 )
 
 from utils.screenlog import screen_log  # NEW
-from utils.runtime import now_utc_iso
+from utils.time import now_utc_iso
 from state import autoload_latest_artifacts, fingerprint_check
 from ui.blocks import nav_bar  # Canonical nav
 

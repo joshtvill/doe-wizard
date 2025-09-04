@@ -21,7 +21,7 @@ from services.file_io import read_csv_lite
 from services.artifacts import save_csv, save_json
 from utils.ui_state import bump_version, clear_keys
 from utils.screenlog import screen_log  # NEW
-from utils.runtime import now_utc_iso
+from utils.time import now_utc_iso
 from state import autoload_latest_artifacts, fingerprint_check
 
 # ---- Screen-local state keys (NOT widget keys) ----

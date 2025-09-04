@@ -21,7 +21,7 @@ from services.profiler import profile_table
 from services.artifacts import save_json, save_csv
 from utils.constants import PROF_SAMPLE_CAP
 from utils.screenlog import screen_log  # NEW
-from utils.runtime import now_utc_iso
+from utils.time import now_utc_iso
 from state import autoload_latest_artifacts, fingerprint_check
 
 # --- Session-state keys (local to Screen 2) ---

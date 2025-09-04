@@ -15,7 +15,7 @@ from services.modeling_train import train_models
 from services.modeling_select import select_champion, build_champion_bundle
 from services.artifacts import save_csv, save_json
 from utils.screenlog import screen_log  # NEW
-from utils.runtime import now_utc_iso
+from utils.time import now_utc_iso
 from state import autoload_latest_artifacts, fingerprint_check
 from ui.blocks import nav_bar  # Canonical nav
 

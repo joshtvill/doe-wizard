@@ -23,7 +23,8 @@ except Exception:
 import numpy as np
 import pandas as pd
 
-from utils.runtime import env_flag, session_slug, now_utc_iso
+from utils.runtime import env_flag, session_slug
+from utils.time import now_utc_iso
 from utils.uilog import write_event_jsonl  # shared JSONL writer
 from utils.screenlog import screen_log  # canonical JSONL logger used across screens
 from ui.blocks import nav_bar  # canonical nav

@@ -13,7 +13,7 @@ import streamlit as st
 
 from services.session_setup_store import default_slug, build_payload, write_payload
 from utils.screenlog import screen_log  # shared JSONL writer
-from utils.runtime import now_utc_iso
+from utils.time import now_utc_iso
 from state import autoload_latest_artifacts, fingerprint_check
 from ui.blocks import nav_bar           # canonical nav (Back / Reset / Next)
 
