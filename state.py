@@ -88,6 +88,10 @@ def autoload_latest_artifacts(session_slug: str) -> Dict[str, Any]:
         or profile.get("schema_version")
     )
 
+    # HARD schema gate: if current declares a schema_version that differs, raise
+    if current_schema and str(current_schema) != str(SCHEMA_VERSION):
+        raise RuntimeError(f"schema_version mismatch: expected={SCHEMA_VERSION} current={current_schema}")
+
     return {
         "paths": {k: str(v) for k, v in paths.items()},
         "upstream": {"dataset_hash": upstream_ds, "roles_signature": upstream_roles, "schema_version": SCHEMA_VERSION},

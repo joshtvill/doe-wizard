@@ -70,3 +70,24 @@ def test_fingerprint_mismatch(monkeypatch, tmp_path):
     assert not chk["ok"]
     assert any("dataset_hash" in r for r in chk["reasons"])  # should mention dataset_hash mismatch
 
+
+def test_autoload_schema_mismatch_hard_fail(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    slug = "tstate3"
+    art = tmp_path / "artifacts" / slug
+    art.mkdir(parents=True, exist_ok=True)
+
+    # Upstream merged.csv
+    merged = art / "merged.csv"
+    merged.write_text("x,y\n3,4\n", encoding="utf-8")
+
+    # Current profile with incorrect schema_version should hard-fail
+    (art / "profile.json").write_text(
+        json.dumps({"dataset_hash": "deadbeef", "schema_version": "NOT_MATCHING"}, indent=2),
+        encoding="utf-8",
+    )
+
+    import pytest
+    with pytest.raises(RuntimeError) as ei:
+        autoload_latest_artifacts(slug)
+    assert "schema_version mismatch" in str(ei.value)
