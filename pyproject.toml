@@ -10,12 +10,13 @@ requires-python = ">=3.11"
 dependencies = []
 
 [tool.setuptools]
-# We treat these top-level folders as packages
-packages = ["services", "utils", "ui", "screens"]
+# remove: packages = ["services", "utils", "ui", "screens"]
 
 [tool.setuptools.package-data]
-# include non-.py files under these packages if needed later
 services = ["**/*.json", "**/*.md"]
 ui = ["**/*.json", "**/*.md"]
 utils = ["**/*.json", "**/*.md"]
 screens = ["**/*.json", "**/*.md"]
+
+[tool.setuptools.packages.find]
+exclude = ["archive*", "tests*"]
