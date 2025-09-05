@@ -13,9 +13,15 @@ __pycache__/
 .vscode/
 
 # app
-artifacts/
+/artifacts/*
+!/artifacts/.gitkeep
 .streamlit/
 
 # OS
 .DS_Store
 Thumbs.db
+
+screens/scratch.py
+
+# codex temp
+.codex_tmp_*

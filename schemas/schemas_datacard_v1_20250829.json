@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "required": [
+    "responses",
+    "grouping_keys",
+    "features",
+    "checks",
+    "collapsed_summary"
+  ],
+  "properties": {
+    "responses": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "grouping_keys": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "features": {
+      "type": "object"
+    },
+    "checks": {
+      "type": "object"
+    },
+    "collapsed_summary": {
+      "type": "object"
+    }
+  }
+}

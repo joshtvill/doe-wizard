@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "required": [
+    "table_summary",
+    "columns_profile"
+  ],
+  "properties": {
+    "table_summary": {
+      "type": "object"
+    },
+    "columns_profile": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    }
+  }
+}

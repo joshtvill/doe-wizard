@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "properties": {
+    "cv": {
+      "type": "string"
+    },
+    "seed": {
+      "type": "integer"
+    }
+  }
+}

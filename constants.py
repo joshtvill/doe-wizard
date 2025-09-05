@@ -1,5 +1,7 @@
-# Global constants for Phase‑1
-PROFILE_PREVIEW_ROWS = 100
-PROFILE_SAMPLE_ROWS_CAP = 5000
-TIMEZONE = 'America/Los_Angeles'
-ARTIFACTS_DIR = 'artifacts'
+"""Project constants
+
+Single source of truth for schema versioning referenced by writers and screens.
+"""
+
+# Schema version for JSON artifacts (profile, datacard, bundles, optimization)
+SCHEMA_VERSION = "2025-08-29"
