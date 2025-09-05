@@ -21,7 +21,7 @@ from screens.optimization import render as render_s5
 from screens.handoff import render as render_s6
 
 # Shared UI blocks
-from ui.blocks import nav_back_next
+from ui.blocks import nav_back_reset_next
 
 
 # Ordered list of screens (title, render_fn)
@@ -73,10 +73,16 @@ def main() -> None:
     valid = bool(result.get("valid_to_proceed", False))
 
     # ---- Footer navigation (Back / Next) ----
-    prev_clicked, next_clicked = nav_back_next(valid_to_proceed=valid)
+    back_clicked, reset_clicked, next_clicked = nav_back_reset_next(valid_to_proceed=valid)
 
-    if prev_clicked and st.session_state.screen_idx > 0:
+    if back_clicked and st.session_state.screen_idx > 0:
         st.session_state.screen_idx -= 1
+        st.rerun()
+
+    if reset_clicked:
+        # Clear all UI/session selections and return to S1
+        st.session_state.clear()
+        st.session_state.screen_idx = 0
         st.rerun()
 
     if next_clicked and valid and st.session_state.screen_idx < len(SCREENS) - 1:
