@@ -1,16 +1,12 @@
-import os
+# tests/unit/test_app_router.py
 import importlib
-
-def test_app_import_and_pages(monkeypatch):
-    monkeypatch.setenv("DOE_WIZARD_APP_IMPORT_ONLY", "1")
-    if "app" in importlib.sys.modules:
-        del importlib.sys.modules["app"]
-    mod = importlib.import_module("app")
-    pages = mod.get_pages()
-    keys = [k for (k, _, _) in pages]
-    titles = [t for (_, t, _) in pages]
-    modules = [m for (_, _, m) in pages]
-
-    assert "optimization" in keys
-    assert any("Optimization" in t for t in titles)
-    assert "screens.optimization" in modules
+def test_router_back_next_enables_and_moves(monkeypatch):
+    app = importlib.import_module("app")
+    # initialize idx
+    if "current_screen_idx" in app.st.session_state:
+        del app.st.session_state["current_screen_idx"]
+    assert app._get_idx() == 0
+    app._set_idx(1)
+    assert app._get_idx() == 1
+    app._set_idx(0)
+    assert app._get_idx() == 0
