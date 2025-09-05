@@ -19,3 +19,6 @@ services = ["**/*.json", "**/*.md"]
 ui = ["**/*.json", "**/*.md"]
 utils = ["**/*.json", "**/*.md"]
 screens = ["**/*.json", "**/*.md"]
+
+[tool.setuptools.packages.find]
+exclude = ["archive*", "tests*"]
