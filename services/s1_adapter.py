@@ -1,8 +1,14 @@
-"""S1 adapter: session setup helpers (pure; no I/O)."""
-from utils.naming import auto_slug
+# services/s1_adapter.py
+from utils.naming import make_session_slug
 
-def compute_slug(project_name: str, date_str: str | None = None) -> str:
-    return auto_slug(project_name, date_str=date_str)
+def compute_slug(
+    project_name: str,
+    context_tag: str = "",
+    objective: str = "",
+    response_metric: str = "",
+    date_str: str | None = None,
+) -> str:
+    return make_session_slug(project_name, context_tag, objective, response_metric, date_str=date_str)
 
 def validate_session_inputs(name: str, objective: str, response_type: str,
                             context_tag: str, response_metric: str) -> tuple[bool, list[str]]:
