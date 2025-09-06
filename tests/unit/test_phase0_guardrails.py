@@ -1,20 +1,15 @@
 # tests/unit/test_phase0_guardrails.py
 """
-Phase 0 guardrails (grandfather mode):
-- AST guard: fail if any non-grandfathered screens/*.py defines a function
-- Disk-write guard: fail if any non-grandfathered screens/*.py writes to disk
-  (.to_csv(, json.dump(), etc.)
-
-Grandfathering rule (Phase 0 only):
-- Temporarily allow all screens except modeling.py.
-- This preserves the "screens are orchestration-only" rule for modeling.py now,
-  while letting you defer refactors of the other screens to Phase 1/2.
-
-Action for Phase 1:
-- Remove the grandfathering and enforce across all screens.
+Phase 1+ guardrails (static across remaining phases):
+- AST guard: each screens/*.py must define exactly one function named 'render'
+- Disk-write guard: fail if any screens/*.py writes to disk (.to_csv(, json.dump(), etc.)
 
 Notes:
 - Only checks top-level screens/*.py (not screens/archive/*).
+
+Background (Phase 0 history, now removed):
+- Phase 0 had a grandfathering rule that allowed all screens except modeling.py.
+- Action for Phase 1 was to remove grandfathering and enforce across all screens.
 """
 
 from __future__ import annotations
@@ -36,60 +31,45 @@ def _iter_top_level_screen_py() -> list[Path]:
         return []
     return [p.resolve() for p in SCREENS_DIR.glob("*.py") if p.is_file()]
 
-def _grandfather_allowlist() -> set[Path]:
+def test_ast_guard_exactly_one_render_function_in_each_screen():
     """
-    Phase 0: allow everything except modeling.py.
-    This set is computed dynamically from the current tree,
-    so you don't need to update it when files change.
+    Enforce the spine contract: every screen is a thin orchestrator that exposes exactly
+    one function named 'render' (and no other defs).
     """
-    files = _iter_top_level_screen_py()
-    allow = set(files)
-    # Enforce on modeling.py immediately
-    modeling = (SCREENS_DIR / "modeling.py").resolve()
-    if modeling in allow:
-        allow.remove(modeling)
-    return allow
-
-def test_ast_guard_no_functions_in_screens():
     offenders = []
-    allow = _grandfather_allowlist()
 
     for py in _iter_top_level_screen_py():
-        if py in allow:
-            continue  # grandfathered for Phase 0
         try:
             tree = ast.parse(py.read_text(encoding="utf-8"), filename=str(py))
         except SyntaxError as e:
             offenders.append((py, f"SyntaxError: {e}"))
             continue
 
-        for node in ast.walk(tree):
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                offenders.append((py, f"function '{node.name}'"))
+        fn_defs = [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+        names = [f.name for f in fn_defs]
+        if names != ["render"]:
+            offenders.append((py, f"functions found: {names!r} (expected ['render'])"))
 
     assert not offenders, (
-        "Screens must be orchestration-only (no function defs) outside the Phase-0 grandfather list.\n"
+        "Each screens/*.py must define exactly one function named 'render' (and no others):\n"
         + "\n".join(f" - {path}: {why}" for path, why in offenders)
-        + "\nPhase 0 note: all screens except modeling.py are temporarily grandfathered.\n"
-        "Phase 1: remove grandfathering and enforce on all screens."
     )
 
 def test_disk_write_guard_no_writes_in_screens():
+    """
+    Screens must not write to disk directly (all persistence must route via services/artifacts.py,
+    invoked by orchestration code outside of screens). This blocks common write patterns.
+    """
     offenders = []
-    allow = _grandfather_allowlist()
 
     for py in _iter_top_level_screen_py():
-        if py in allow:
-            continue  # grandfathered for Phase 0
         text = py.read_text(encoding="utf-8")
         for pat in FORBIDDEN_WRITE_PATTERNS:
             if re.search(pat, text):
                 offenders.append((py, f"matches pattern: {pat}"))
 
     assert not offenders, (
-        "Screens must not write to disk directly (use services/artifacts.py) "
-        "outside the Phase-0 grandfather list.\nFound potential writes in:\n"
+        "Screens must not write to disk directly (use services/artifacts.py). "
+        "Found potential writes in:\n"
         + "\n".join(f" - {path}: {why}" for path, why in offenders)
-        + "\nPhase 0 note: all screens except modeling.py are temporarily grandfathered.\n"
-        "Phase 1: remove grandfathering and enforce on all screens."
     )

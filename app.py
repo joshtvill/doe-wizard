@@ -1,111 +1,113 @@
 # app.py
-# ============================================================
-# DOE Wizard — App Router (Screens 1–6)
-# Thin shell: config, init, pages list, route.
-# get_pages() -> list of (key, title, module_name)
-# _import_and_render(module_name, call=None) for router unit tests.
-# ============================================================
+"""
+DOE Wizard — central router with env-gated dev sidebar.
 
-from __future__ import annotations
-from pathlib import Path
-from typing import List, Tuple, Dict, Optional
+Phase 1 goals:
+- Screens are thin orchestrators that call adapters only and return a dict.
+- Routing and navigation live here (no sidebar nav in prod).
+- Dev-only sidebar (screen jump) is enabled only when DOE_WIZARD_DEBUG=1.
+- No disk writes occur in screens; this file performs no I/O either.
+"""
+
 import os
 import streamlit as st
 
-from utils.router import resolve_renderer
-from utils.app_init import ensure_artifacts_dir, init_session_state, header
+# Screen render imports (each returns {"valid_to_proceed": bool, "payload": dict})
+from screens.session_setup import render as render_s1
+from screens.files_join_profile import render as render_s2
+from screens.roles_collapse import render as render_s3
+from screens.modeling import render as render_s4
+from screens.optimization import render as render_s5
+from screens.handoff import render as render_s6
 
-APP_VERSION = "0.1.0"
-ARTIFACTS_DIR = Path("artifacts")
-IMPORT_ONLY = os.getenv("DOE_WIZARD_APP_IMPORT_ONLY") == "1"
+# Shared UI blocks
+from ui.blocks import nav_back_reset_next
 
-if not IMPORT_ONLY:
-    st.set_page_config(
-        page_title="DOE Wizard",
-        page_icon="🧪",
-        layout="wide",
-        initial_sidebar_state="expanded",
-    )
 
-def get_pages() -> List[Tuple[str, str, str]]:
-    """
-    Return page registry as a list of 3-tuples:
-      (key_lowercase, human_title, module_name)
-    """
-    return [
-        ("session_setup",      "Session Setup",          "screens.session_setup"),
-        ("files_join_profile", "Files · Join · Profile", "screens.files_join_profile"),
-        ("roles_collapse",     "Roles & Collapse",       "screens.roles_collapse"),
-        ("modeling",           "Modeling",               "screens.modeling"),
-        ("optimization",       "Optimization",           "screens.optimization"),
-        ("handoff",            "Handoff",                "screens.handoff"),
-    ]
+# Ordered list of screens (title, render_fn)
+SCREENS = [
+    ("S1 — Session Setup", render_s1),
+    ("S2 — Files · Join · Profile", render_s2),
+    ("S3 — Roles & Collapse", render_s3),
+    ("S4 — Modeling", render_s4),
+    ("S5 — Optimization", render_s5),
+    ("S6 — Handoff", render_s6),
+]
 
-def _import_and_render(module_name: str, call: Optional[bool] = None) -> bool:
-    """
-    Test-friendly adapter:
-      - Always import and resolve a renderer for `module_name`.
-      - If `call` is True, invoke the renderer.
-      - If `call` is None, default to NOT calling in import-only mode,
-        and calling in interactive mode.
-      - Returns True on successful import/resolve (and optional call).
-    """
-    renderer = resolve_renderer(module_name)
-    # Default behavior: avoid calling during import-only test runs
-    if call is None:
-        call = not IMPORT_ONLY
-    if call:
-        renderer()  # may raise; let tests see real exceptions if any
-    return True
 
 def main() -> None:
-    ensure_artifacts_dir(ARTIFACTS_DIR)
-    init_session_state(APP_VERSION, ARTIFACTS_DIR)
+    st.set_page_config(page_title="DOE Wizard", layout="wide")
 
-    if IMPORT_ONLY:
-        # Import-only path for router unit tests
-        return
+    # Initialize router position
+    if "screen_idx" not in st.session_state:
+        st.session_state.screen_idx = 0
 
-    pages: List[Tuple[str, str, str]] = get_pages()
-    keys_in_order = [k for (k, _, _) in pages]
-    titles_in_order = [t for (_, t, _) in pages]
-    module_for_key: Dict[str, str] = {k: m for (k, _, m) in pages}
-    title_for_key: Dict[str, str] = {k: t for (k, t, _) in pages}
+    # ---- Apply pending reset BEFORE rendering widgets ----
+    pending = st.session_state.get("_pending_reset")
+    if pending and pending.get("idx") == st.session_state.screen_idx:
+        for k in pending.get("keys", []):
+            if k in pending.get("defaults", {}):
+                st.session_state[k] = pending["defaults"][k]
+            else:
+                # Remove so the widget re-instantiates with its default state
+                if k in st.session_state:
+                    del st.session_state[k]
+        # run once
+        del st.session_state["_pending_reset"]
 
-    with st.sidebar:
-        st.markdown("### DOE Wizard")
-        st.caption(f"App version: {APP_VERSION}")
-        st.divider()
-        current_key = st.session_state.get("current_page", keys_in_order[0])
-        default_idx = keys_in_order.index(current_key) if current_key in keys_in_order else 0
-        choice_title = st.radio("Navigate", titles_in_order, index=default_idx, key="nav_radio")
-        choice_key = next(k for k, t in title_for_key.items() if t == choice_title)
-        st.divider()
-        st.caption(f"Artifacts directory: `{ARTIFACTS_DIR}`")
+    # ---- Dev-only sidebar (env-gated) ----
+    # Toggle with: $env:DOE_WIZARD_DEBUG="1"  (PowerShell)
+    debug = os.getenv("DOE_WIZARD_DEBUG", "0") == "1"
+    if debug:
+        with st.sidebar:
+            st.subheader("Dev Tools")
+            st.caption("Debug sidebar active (set DOE_WIZARD_DEBUG=1 to show)")
+            st.radio(
+                "Jump to screen",
+                options=[f"{i}: {title}" for i, (title, _) in enumerate(SCREENS)],
+                index=st.session_state.screen_idx,
+                key="dev_jump_choice",
+            )
+            # Parse selected index from "i: Title"
+            try:
+                chosen_prefix = str(st.session_state.dev_jump_choice).split(":")[0].strip()
+                new_idx = int(chosen_prefix)
+                if new_idx != st.session_state.screen_idx:
+                    st.session_state.screen_idx = new_idx
+                    st.rerun()
+            except Exception:
+                pass  # keep current index if parsing fails
 
-    # Track nav (non-widget keys only)
-    st.session_state["last_page"] = st.session_state.get("current_page", choice_key)
-    st.session_state["current_page"] = choice_key
+    # ---- Render current screen ----
+    title, renderer = SCREENS[st.session_state.screen_idx]
+    st.markdown(f"### {title}")
 
-    header(f"DOE Wizard — {title_for_key[choice_key]}", APP_VERSION)
+    result = renderer() or {}
+    valid = bool(result.get("valid_to_proceed", False))
 
-    # Resolve and call renderer at runtime
-    module_name = module_for_key[choice_key]
-    renderer = resolve_renderer(module_name)
+    # ---- Footer navigation (Back / Reset / Next) ----
+    back_clicked, reset_clicked, next_clicked = nav_back_reset_next(valid_to_proceed=valid)
 
-    try:
-        renderer()
-    except Exception as e:
-        st.exception(e)
+    if back_clicked and st.session_state.screen_idx > 0:
+        st.session_state.screen_idx -= 1
+        st.rerun()
 
-    st.markdown(
-        "<hr style='opacity:0.3;'/>"
-        "<div style='font-size:0.9em;opacity:0.8;'>"
-        "Screens are thin; business logic lives in services/ & utils/. "
-        "Artifacts are written under <code>artifacts/</code> with UTC + local timestamps."
-        "</div>",
-        unsafe_allow_html=True,
-    )
+    if reset_clicked:
+        payload = (result or {}).get("payload", {}) or {}
+        reset_keys = payload.get("reset_keys", [])
+        reset_defaults = payload.get("reset_defaults", {})
+        # Defer the actual clear to the next run (pre-render)
+        st.session_state["_pending_reset"] = {
+            "idx": st.session_state.screen_idx,
+            "keys": reset_keys,
+            "defaults": reset_defaults,
+        }
+        st.rerun()
+
+    if next_clicked and valid and st.session_state.screen_idx < len(SCREENS) - 1:
+        st.session_state.screen_idx += 1
+        st.rerun()
+
 
 if __name__ == "__main__":
     main()

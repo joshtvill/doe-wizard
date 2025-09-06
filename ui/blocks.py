@@ -1,74 +1,58 @@
 # ui/blocks.py
-"""Shared UI blocks for Streamlit screens (MVP minimal, Arrow-free previews)."""
-from __future__ import annotations
-from typing import List, Dict, Any, Optional, Tuple
-
 import streamlit as st
-import pandas as pd
 
-# -- internal: safe HTML table to avoid pyarrow dependency in st.dataframe --
-def _html_table(df: pd.DataFrame, caption: Optional[str] = None) -> None:
-    if caption:
-        st.markdown(f"**{caption}**")
-    if df is None or df.empty:
-        st.info("No data.")
+def _inject_nav_css():
+    if st.session_state.get("_nav_css_injected"):
         return
-    st.markdown(df.to_html(index=False, border=1), unsafe_allow_html=True)
+    st.markdown(
+        """
+        <style>
+          /* Keep buttons a consistent size across viewport widths */
+          .nav-btn .stButton>button {
+            min-width: 140px;
+            max-width: 140px;
+            height: 38px;
+          }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.session_state["_nav_css_injected"] = True
 
-def app_header(title: str, subtitle: Optional[str] = None) -> None:
-    st.title(title)
-    if subtitle:
-        st.caption(subtitle)
+def nav_back_reset_next(valid_to_proceed: bool) -> tuple[bool, bool, bool]:
+    """
+    Horizontal layout:
+      [ Back ]   [    Reset    ]                         [ Next ]
+    Reset centered; buttons have stable sizes.
+    Returns (back_clicked, reset_clicked, next_clicked).
+    """
+    _inject_nav_css()
+    left, center, spacer, right = st.columns([2, 2, 8, 2])
 
-def section_header(text: str) -> None:
-    st.subheader(text)
+    with left:
+        back_clicked = st.container()
+        with back_clicked:
+            st.markdown('<div class="nav-btn">', unsafe_allow_html=True)
+            back_clicked = st.button("← Back", key="nav_back")
+            st.markdown('</div>', unsafe_allow_html=True)
 
-def status_zone(messages: List[Dict[str, Any]]) -> None:
-    """Each item: {level: 'error'|'warning'|'info'|'success', text: str}"""
-    for m in messages:
-        lvl = m.get("level", "info")
-        txt = m.get("text", "")
-        if lvl == "error":
-            st.error(txt)
-        elif lvl == "warning":
-            st.warning(txt)
-        elif lvl == "success":
-            st.success(txt)
-        else:
-            st.info(txt)
+    with center:
+        reset_clicked = st.container()
+        with reset_clicked:
+            st.markdown('<div class="nav-btn" style="display:flex;justify-content:center;">', unsafe_allow_html=True)
+            reset_clicked = st.button("Reset", key="nav_reset")
+            st.markdown('</div>', unsafe_allow_html=True)
 
-def table_summary_preview(summary: Dict[str, Any]) -> None:
-    if not summary:
-        st.info("No summary available.")
-        return
-    _html_table(pd.DataFrame([summary]), caption="Table-level summary")
+    with right:
+        next_clicked = st.container()
+        with next_clicked:
+            st.markdown('<div class="nav-btn" style="display:flex;justify-content:flex-end;">', unsafe_allow_html=True)
+            next_clicked = st.button("Next →", key="nav_next", disabled=not valid_to_proceed)
+            st.markdown('</div>', unsafe_allow_html=True)
 
-def columns_profile_preview(cols: List[Dict[str, Any]]) -> None:
-    if not cols:
-        st.info("No column profile available.")
-        return
-    _html_table(pd.DataFrame(cols), caption="Column-level profile")
+    return bool(back_clicked), bool(reset_clicked), bool(next_clicked)
 
-def table_preview(df: pd.DataFrame, max_rows: int = 100) -> None:
-    if df is None or df.empty:
-        st.info("No table to preview.")
-        return
-    _html_table(df.head(max_rows), caption=f"Table preview (first {max_rows} rows)")
-
-def nav_bar(
-    back_enabled: bool,
-    next_enabled: bool,
-    on_back_label: str = "Back",
-    on_reset_label: str = "Reset",
-    on_next_label: str = "Next",
-    cols: Tuple[float, float, float] = (1, 1, 1),
-) -> Tuple[bool, bool, bool]:
-    """Returns (clicked_back, clicked_reset, clicked_next)."""
-    c1, c2, c3 = st.columns(cols)
-    with c1:
-        clicked_back = st.button(on_back_label, disabled=not back_enabled, use_container_width=True, key="nav_back")
-    with c2:
-        clicked_reset = st.button(on_reset_label, use_container_width=True, type="secondary", key="nav_reset")
-    with c3:
-        clicked_next = st.button(on_next_label, disabled=not next_enabled, use_container_width=True, type="primary", key="nav_next")
-    return clicked_back, clicked_reset, clicked_next
+# Back-compat
+def nav_back_next(valid_to_proceed: bool) -> tuple[bool, bool]:
+    back, _reset, nxt = nav_back_reset_next(valid_to_proceed)
+    return back, nxt
