@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "screen_log",
+  "type": "object",
+  "required": ["ts_local", "ts_utc", "level", "code", "message"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+    "session_slug": { "type": "string", "minLength": 1 },
+    "screen": { "type": "string", "enum": ["S1","S2","S3","S4","S5","S6"] },
+    "event": { "type": "string" },
+    "ts_local": { "type": "string", "format": "date-time" },
+    "ts_utc": { "type": "string", "format": "date-time" },
+    "level": { "type": "string", "enum": ["DEBUG","INFO","WARNING","ERROR"] },
+    "code": { "type": "string", "minLength": 1 },
+    "message": { "type": "string", "minLength": 1 },
+    "context": { "type": "object", "additionalProperties": true }
+  },
+  "additionalProperties": false
+}

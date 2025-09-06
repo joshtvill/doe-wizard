@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "champion_bundle",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "session_slug",
+    "ts_local",
+    "ts_utc",
+    "model_type",
+    "selection_rationale",
+    "metrics",
+    "fitted_at_local",
+    "fitted_at_utc",
+    "data_fingerprint"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+    "session_slug": { "type": "string" },
+    "ts_local": { "type": "string", "format": "date-time" },
+    "ts_utc": { "type": "string", "format": "date-time" },
+
+    "model_type": { "type": "string", "enum": ["RF","XGB","GPR"] },
+    "selection_rationale": { "type": "string", "minLength": 1 },
+
+    "metrics": {
+      "type": "object",
+      "required": ["r2","rmse","mae"],
+      "properties": {
+        "r2": { "type": "number" },
+        "rmse": { "type": "number" },
+        "mae": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+
+    "fitted_at_local": { "type": "string", "format": "date-time" },
+    "fitted_at_utc": { "type": "string", "format": "date-time" },
+
+    "scaling_flags": {
+      "type": "object",
+      "properties": {
+        "standardize_X": { "type": "boolean" },
+        "standardize_y": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+
+    "data_fingerprint": { "type": "string", "minLength": 8 }
+  },
+  "additionalProperties": false
+}

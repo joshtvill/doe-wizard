@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "optimization_settings",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "session_slug",
+    "ts_local",
+    "ts_utc",
+    "objective",
+    "batch_size",
+    "acquisition",
+    "safeguards",
+    "bounds_snapshot"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+    "session_slug": { "type": "string" },
+    "ts_local": { "type": "string", "format": "date-time" },
+    "ts_utc": { "type": "string", "format": "date-time" },
+
+    "objective": { "type": "string", "enum": ["maximize","minimize"] },
+
+    "batch_size": { "type": "integer", "minimum": 1, "default": 8 },
+
+    "acquisition": {
+      "type": "string",
+      "enum": ["EI", "PI", "UCB", "q-EI"]
+    },
+
+    "safeguards": {
+      "type": "object",
+      "required": ["diversity_min","safety_k","novelty_limit"],
+      "properties": {
+        "diversity_min": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.2 },
+        "safety_k": { "type": "number", "minimum": 0, "default": 3 },
+        "novelty_limit": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.10 }
+      },
+      "additionalProperties": false
+    },
+
+    "baseline": {
+      "type": "object",
+      "description": "Optional benchmark settings to compare against.",
+      "additionalProperties": true
+    },
+
+    "bounds_snapshot": {
+      "type": "array",
+      "description": "Typed, frozen bounds at proposal time.",
+      "items": {
+        "type": "object",
+        "required": ["name","type","lower","upper","units"],
+        "properties": {
+          "name": { "type": "string" },
+          "type": { "type": "string", "enum": ["continuous","integer","categorical"] },
+          "lower": { "type": ["number","string","null"] },
+          "upper": { "type": ["number","string","null"] },
+          "units": { "type": ["string","null"] },
+          "levels": {
+            "type": ["array","null"],
+            "items": { "type": ["number","string"] }
+          }
+        },
+        "additionalProperties": false
+      },
+      "minItems": 1
+    }
+  },
+  "additionalProperties": false
+}
