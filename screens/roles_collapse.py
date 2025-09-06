@@ -13,4 +13,18 @@ def render(df_columns: list[str] | None = None) -> dict:
     if errs: st.info(" • " + "\n • ".join(errs))
 
     st.caption(f"Candidate factor columns: {', '.join(candidates) or '(none)'}")
-    return {"valid_to_proceed": ok, "payload": {"roles": roles, "candidates": candidates}}
+    return {
+        "valid_to_proceed": ok,
+        "payload": {
+            "roles": roles,
+            "candidates": candidates,
+            "reset_keys": [
+                # every widget key on this screen
+                "s3_responses",
+            ],
+            "reset_defaults": {
+                # default multiselect to empty
+                "s3_responses": [],
+            },
+        },
+    }
