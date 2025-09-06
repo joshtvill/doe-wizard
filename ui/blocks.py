@@ -1,4 +1,3 @@
-# ui/blocks.py
 import streamlit as st
 
 def _inject_nav_css():
@@ -7,15 +6,8 @@ def _inject_nav_css():
     st.markdown(
         """
         <style>
-          /* Wrap row so we can style only our nav buttons */
-          .nav-row { display: flex; align-items: center; width: 100%; }
-          .nav-left, .nav-center, .nav-right { flex: 1 1 0; display: flex; align-items: center; }
-          .nav-left  { justify-content: flex-start; }
-          .nav-center{ justify-content: center; } /* <-- Reset centered */
-          .nav-right { justify-content: flex-end; }
-
-          /* Stable button sizing regardless of viewport width */
-          .nav-row .stButton>button {
+          /* Make button widths stable across viewport sizes */
+          .nav-btn .stButton>button {
             min-width: 140px;
             max-width: 140px;
             height: 38px;
@@ -28,32 +20,38 @@ def _inject_nav_css():
 
 def nav_back_reset_next(valid_to_proceed: bool) -> tuple[bool, bool, bool]:
     """
-    Returns (back_clicked, reset_clicked, next_clicked)
-    - Reset is centered; Back left; Next right
-    - Next disabled if valid_to_proceed is False
-    - Button sizes remain stable via CSS
+    Horizontal layout:
+      [ Back ]   [    Reset    ]                         [ Next ]
+    Reset is centered; buttons have stable sizes.
+    Returns (back_clicked, reset_clicked, next_clicked).
     """
     _inject_nav_css()
-    st.markdown('<div class="nav-row">', unsafe_allow_html=True)
-    # Left: Back
-    with st.container():
-        st.markdown('<div class="nav-left">', unsafe_allow_html=True)
-        back_clicked = st.button("← Back", key="nav_back")
-        st.markdown("</div>", unsafe_allow_html=True)
-    # Center: Reset
-    with st.container():
-        st.markdown('<div class="nav-center">', unsafe_allow_html=True)
-        reset_clicked = st.button("Reset", key="nav_reset")
-        st.markdown("</div>", unsafe_allow_html=True)
-    # Right: Next
-    with st.container():
-        st.markdown('<div class="nav-right">', unsafe_allow_html=True)
-        next_clicked = st.button("Next →", disabled=not valid_to_proceed, key="nav_next")
-        st.markdown("</div>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
-    return back_clicked, reset_clicked, next_clicked
+    left, center, spacer, right = st.columns([2, 2, 8, 2])
 
-# Back-compat for any older imports
+    with left:
+        back_clicked = st.container()
+        with back_clicked:
+            st.markdown('<div class="nav-btn">', unsafe_allow_html=True)
+            back_clicked = st.button("← Back", key="nav_back")
+            st.markdown('</div>', unsafe_allow_html=True)
+
+    with center:
+        reset_clicked = st.container()
+        with reset_clicked:
+            st.markdown('<div class="nav-btn" style="display:flex;justify-content:center;">', unsafe_allow_html=True)
+            reset_clicked = st.button("Reset", key="nav_reset")
+            st.markdown('</div>', unsafe_allow_html=True)
+
+    with right:
+        next_clicked = st.container()
+        with next_clicked:
+            st.markdown('<div class="nav-btn" style="display:flex;justify-content:flex-end;">', unsafe_allow_html=True)
+            next_clicked = st.button("Next →", key="nav_next", disabled=not valid_to_proceed)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+    return bool(back_clicked), bool(reset_clicked), bool(next_clicked)
+
+# Back-compat
 def nav_back_next(valid_to_proceed: bool) -> tuple[bool, bool]:
     back, _reset, nxt = nav_back_reset_next(valid_to_proceed)
     return back, nxt

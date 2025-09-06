@@ -36,7 +36,7 @@ def render() -> dict:
             "response_metric": response_metric,
             "notes": notes,
             "slug": slug,
-            # Declare which session_state keys this screen owns, so Reset can clear them only
+            # Declare which widgets belong to this screen
             "reset_keys": [
                 "s1_title",
                 "s1_objective",
@@ -45,5 +45,16 @@ def render() -> dict:
                 "s1_response_metric",
                 "s1_notes",
             ],
+            # Provide explicit defaults so Reset can restore a clean page
+            "reset_defaults": {
+                "s1_title": "",
+                "s1_context_tag": "",
+                "s1_response_metric": "",
+                "s1_notes": "",
+                # Radios keep their current values in Phase 1; if you want, set them explicitly:
+                # "s1_objective": "Maximize",
+                # "s1_response_type": "Continuous",
+            },
         },
     }
+

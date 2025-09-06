@@ -80,11 +80,19 @@ def main() -> None:
         st.rerun()
 
     if reset_clicked:
-        # Clear only the current screen's declared keys (if provided)
-        for k in (result.get("payload", {}) or {}).get("reset_keys", []):
-            if k in st.session_state:
-                del st.session_state[k]
-        st.rerun()  # re-render same screen with cleared inputs
+        payload = (result or {}).get("payload", {}) or {}
+        reset_keys = payload.get("reset_keys", [])
+        reset_defaults = payload.get("reset_defaults", {})
+
+        # If the screen provides explicit defaults, use those; otherwise blank-out text-like fields.
+        for k in reset_keys:
+            if k in reset_defaults:
+                st.session_state[k] = reset_defaults[k]
+            else:
+                # Generic blank that works well for text/textarea; radios will keep their current selection
+                st.session_state[k] = ""  # keeps scope small for Phase 1
+
+        st.rerun()
 
     if next_clicked and valid and st.session_state.screen_idx < len(SCREENS) - 1:
         st.session_state.screen_idx += 1
