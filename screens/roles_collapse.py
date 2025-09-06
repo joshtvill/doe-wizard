@@ -6,7 +6,7 @@ def render(df_columns: list[str] | None = None) -> dict:
     df_columns = df_columns or ["x1", "x2", "x3", "y"]
     candidates = s3_adapter.candidate_role_columns(df_columns)
 
-    responses = st.multiselect("Responses", options=df_columns, default=["y"] if "y" in df_columns else [])
+    responses = st.multiselect("Responses", options=df_columns, key="s3_responses")
     roles = {"responses": responses}
 
     ok, errs = s3_adapter.validate_roles(roles)
@@ -14,17 +14,11 @@ def render(df_columns: list[str] | None = None) -> dict:
 
     st.caption(f"Candidate factor columns: {', '.join(candidates) or '(none)'}")
     return {
-        "valid_to_proceed": ok,
+        "valid_to_proceed": bool(responses),
         "payload": {
-            "roles": roles,
-            "candidates": candidates,
-            "reset_keys": [
-                # every widget key on this screen
-                "s3_responses",
-            ],
-            "reset_defaults": {
-                # default multiselect to empty
-                "s3_responses": [],
-            },
+            # ...other fields you already return...
+            "reset_keys": ["s3_responses"],
+            "reset_defaults": {"s3_responses": []},  # ensures blank after reset
         },
     }
+
