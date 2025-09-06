@@ -72,7 +72,7 @@ def main() -> None:
     result = renderer() or {}
     valid = bool(result.get("valid_to_proceed", False))
 
-    # ---- Footer navigation (Back / Next) ----
+    # ---- Footer navigation (Back / Reset / Next) ----
     back_clicked, reset_clicked, next_clicked = nav_back_reset_next(valid_to_proceed=valid)
 
     if back_clicked and st.session_state.screen_idx > 0:
@@ -80,10 +80,11 @@ def main() -> None:
         st.rerun()
 
     if reset_clicked:
-        # Clear all UI/session selections and return to S1
-        st.session_state.clear()
-        st.session_state.screen_idx = 0
-        st.rerun()
+        # Clear only the current screen's declared keys (if provided)
+        for k in (result.get("payload", {}) or {}).get("reset_keys", []):
+            if k in st.session_state:
+                del st.session_state[k]
+        st.rerun()  # re-render same screen with cleared inputs
 
     if next_clicked and valid and st.session_state.screen_idx < len(SCREENS) - 1:
         st.session_state.screen_idx += 1
