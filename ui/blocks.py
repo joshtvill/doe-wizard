@@ -1,3 +1,4 @@
+# ui/blocks.py
 import streamlit as st
 
 def _inject_nav_css():
@@ -6,7 +7,7 @@ def _inject_nav_css():
     st.markdown(
         """
         <style>
-          /* Make button widths stable across viewport sizes */
+          /* Keep buttons a consistent size across viewport widths */
           .nav-btn .stButton>button {
             min-width: 140px;
             max-width: 140px;
@@ -22,7 +23,7 @@ def nav_back_reset_next(valid_to_proceed: bool) -> tuple[bool, bool, bool]:
     """
     Horizontal layout:
       [ Back ]   [    Reset    ]                         [ Next ]
-    Reset is centered; buttons have stable sizes.
+    Reset centered; buttons have stable sizes.
     Returns (back_clicked, reset_clicked, next_clicked).
     """
     _inject_nav_css()

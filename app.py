@@ -42,6 +42,19 @@ def main() -> None:
     if "screen_idx" not in st.session_state:
         st.session_state.screen_idx = 0
 
+    # ---- Apply pending reset BEFORE rendering widgets ----
+    pending = st.session_state.get("_pending_reset")
+    if pending and pending.get("idx") == st.session_state.screen_idx:
+        for k in pending.get("keys", []):
+            if k in pending.get("defaults", {}):
+                st.session_state[k] = pending["defaults"][k]
+            else:
+                # Remove so the widget re-instantiates with its default state
+                if k in st.session_state:
+                    del st.session_state[k]
+        # run once
+        del st.session_state["_pending_reset"]
+
     # ---- Dev-only sidebar (env-gated) ----
     # Toggle with: $env:DOE_WIZARD_DEBUG="1"  (PowerShell)
     debug = os.getenv("DOE_WIZARD_DEBUG", "0") == "1"
@@ -83,15 +96,12 @@ def main() -> None:
         payload = (result or {}).get("payload", {}) or {}
         reset_keys = payload.get("reset_keys", [])
         reset_defaults = payload.get("reset_defaults", {})
-
-        # If the screen provides explicit defaults, use those; otherwise blank-out text-like fields.
-        for k in reset_keys:
-            if k in reset_defaults:
-                st.session_state[k] = reset_defaults[k]
-            else:
-                # Generic blank that works well for text/textarea; radios will keep their current selection
-                st.session_state[k] = ""  # keeps scope small for Phase 1
-
+        # Defer the actual clear to the next run (pre-render)
+        st.session_state["_pending_reset"] = {
+            "idx": st.session_state.screen_idx,
+            "keys": reset_keys,
+            "defaults": reset_defaults,
+        }
         st.rerun()
 
     if next_clicked and valid and st.session_state.screen_idx < len(SCREENS) - 1:
